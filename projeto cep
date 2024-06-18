@@ -1,0 +1,143 @@
+npm install -g @angular/cli
+ng new formulario-angular
+cd formulario-angular
+ng generate component formulario
+ng generate service cep
+import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+
+@Injectable({
+  providedIn: 'root'
+})
+export class CepService {
+
+  private viaCepUrl = 'https://viacep.com.br/ws/';
+
+  constructor(private http: HttpClient) { }
+
+  getAddressByCep(cep: string) {
+    return this.http.get(${this.viaCepUrl}${cep}/json/);
+  }
+}
+import { Component, OnInit } from '@angular/core';
+import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { CepService } from '../cep.service';
+
+@Component({
+  selector: 'app-formulario',
+  templateUrl: './formulario.component.html',
+  styleUrls: ['./formulario.component.css']
+})
+export class FormularioComponent implements OnInit {
+
+  formulario: FormGroup;
+
+  constructor(private fb: FormBuilder, private cepService: CepService) { }
+
+  ngOnInit() {
+    this.createForm();
+  }
+
+  createForm() {
+    this.formulario = this.fb.group({
+      nomeCompleto: ['', Validators.required],
+      dataNascimento: ['', Validators.required],
+      cpf: ['', Validators.required],
+      email: ['', [Validators.required, Validators.email]],
+      telefone: ['', Validators.required],
+      cep: ['', Validators.required],
+      endereco: this.fb.group({
+        rua: ['', Validators.required],
+        numero: [''],
+        complemento: [''],
+        bairro: ['', Validators.required],
+        cidade: ['', Validators.required],
+        estado: ['', Validators.required]
+      })
+    });
+  }
+
+  buscarCep() {
+    const cep = this.formulario.get('cep').value;
+
+    if (cep) {
+      this.cepService.getAddressByCep(cep).subscribe((endereco: any) => {
+        if (!endereco.erro) {
+          this.formulario.patchValue({
+            endereco: {
+              rua: endereco.logradouro,
+              complemento: endereco.complemento,
+              bairro: endereco.bairro,
+              cidade: endereco.localidade,
+              estado: endereco.uf
+            }
+          });
+        } else {
+          // Tratar erro (CEP não encontrado)
+        }
+      });
+    }
+  }
+
+  onSubmit() {
+    if (this.formulario.valid) {
+      // Enviar formulário para backend ou realizar outra ação necessária
+      console.log(this.formulario.value);
+    } else {
+      // Marcar campos inválidos
+      this.markFormGroupTouched(this.formulario);
+    }
+  }
+
+  markFormGroupTouched(formGroup: FormGroup) {
+    Object.values(formGroup.controls).forEach(control => {
+      control.markAsTouched();
+
+      if (control instanceof FormGroup) {
+        this.markFormGroupTouched(control);
+      }
+    });
+  }
+
+}
+<form [formGroup]="formulario" (ngSubmit)="onSubmit()">
+  <label>Nome Completo:</label>
+  <input formControlName="nomeCompleto" type="text">
+
+  <label>Data de Nascimento:</label>
+  <input formControlName="dataNascimento" type="date">
+
+  <label>CPF:</label>
+  <input formControlName="cpf" type="text">
+
+  <label>E-mail:</label>
+  <input formControlName="email" type="email">
+
+  <label>Telefone:</label>
+  <input formControlName="telefone" type="tel">
+
+  <label>CEP:</label>
+  <input formControlName="cep" type="text" (blur)="buscarCep()">
+
+  <div formGroupName="endereco">
+    <label>Rua:</label>
+    <input formControlName="rua" type="text">
+
+    <label>Número:</label>
+    <input formControlName="numero" type="text">
+
+    <label>Complemento:</label>
+    <input formControlName="complemento" type="text">
+
+    <label>Bairro:</label>
+    <input formControlName="bairro" type="text">
+
+    <label>Cidade:</label>
+    <input formControlName="cidade" type="text">
+
+    <label>Estado:</label>
+    <input formControlName="estado" type="text">
+  </div>
+
+  <button type="submit">Enviar</button>
+</form>
